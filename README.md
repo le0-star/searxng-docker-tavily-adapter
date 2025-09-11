@@ -1,119 +1,147 @@
-# searxng-docker
+# SearXNG Docker Tavily Adapter
 
-Create a new SearXNG instance in five minutes using Docker
+**Бесплатная замена Tavily API на базе SearXNG** 🔍
 
-## What is included?
+Используйте SearXNG с точно таким же API как у Tavily - без ограничений, без API ключей, полная приватность!
 
-| Name                                          | Description                                                    | Docker image                                                                 | Dockerfile                                                                                                                                                                                    |
-|-----------------------------------------------|----------------------------------------------------------------|------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| [Caddy](https://github.com/caddyserver/caddy) | Reverse proxy (create a LetsEncrypt certificate automatically) | [docker.io/library/caddy:2-alpine](https://hub.docker.com/_/caddy)           | [Dockerfile](https://github.com/caddyserver/caddy-docker/blob/master/Dockerfile.tmpl)                                                                                                         |
-| [SearXNG](https://github.com/searxng/searxng) | SearXNG by itself                                              | [docker.io/searxng/searxng:latest](https://hub.docker.com/r/searxng/searxng) | [builder.dockerfile](https://github.com/searxng/searxng/blob/master/container/builder.dockerfile) [dist.dockerfile](https://github.com/searxng/searxng/blob/master/container/dist.dockerfile) |
-| [Valkey](https://github.com/valkey-io/valkey) | In-memory database                                             | [docker.io/valkey/valkey:8-alpine](https://hub.docker.com/r/valkey/valkey)   | [Dockerfile](https://github.com/valkey-io/valkey-container/blob/mainline/Dockerfile.template)                                                                                                 |
+> 🎯 **Готовый Docker Compose стек** с SearXNG + Tavily-совместимым API адаптером
 
-## How to use it
+## 🚀 Быстрый старт
 
-There are two ways to host SearXNG. The first one doesn't require any prior knowledge about self-hosting and thus is
-recommended for beginners. It includes caddy as a reverse proxy and automatically deals with the TLS certificates for
-you. The second one is recommended for more advanced users that already have their own reverse proxy (e.g. Nginx,
-HAProxy, ...) and probably some other services running on their machine. The first few steps are the same for both
-installation methods however.
+```bash
+# 1. Клонирование
+git clone https://github.com/vakovalskii/searxng-docker-tavily-adapter.git
+cd searxng-docker-tavily-adapter
 
-1. [Install docker](https://docs.docker.com/install/)
-2. Get searxng-docker
+# 2. Настройка конфигурации
+cp config.example.yaml config.yaml
+# Поменяйте secret_key в config.yaml
 
-```shell
-cd /usr/local
-git clone https://github.com/searxng/searxng-docker.git
-cd searxng-docker
-```
-
-3. Edit the [.env](https://github.com/searxng/searxng-docker/blob/master/.env) file to set the hostname and an email
-4. Generate the secret key `sed -i "s|ultrasecretkey|$(openssl rand -hex 32)|g" searxng/settings.yml`  
-   On a Mac: `sed -i '' "s|ultrasecretkey|$(openssl rand -hex 32)|g" searxng/settings.yml`
-5. Edit [searxng/settings.yml](https://github.com/searxng/searxng-docker/blob/master/searxng/settings.yml) according to
-   your needs
-
-> [!NOTE]
-> Windows users can use the following powershell script to generate the secret key:
-> ```powershell
-> $randomBytes = New-Object byte[] 32
-> (New-Object Security.Cryptography.RNGCryptoServiceProvider).GetBytes($randomBytes)
-> $secretKey = -join ($randomBytes | ForEach-Object { "{0:x2}" -f $_ })
-> (Get-Content searxng/settings.yml) -replace 'ultrasecretkey', $secretKey | Set-Content searxng/settings.yml
-> ```
-
-### Method 1: With Caddy included (recommended for beginners)
-
-6. Run SearXNG in the background: `docker compose up -d`
-
-### Method 2: Bring your own reverse proxy (experienced users)
-
-6. Remove the caddy related parts in `docker-compose.yaml` such as the caddy service and its volumes.
-7. Point your reverse proxy to the port set for the `searxng` service in `docker-compose.yml` (8080 by default).
-8. Generate and configure the required TLS certificates with the reverse proxy of your choice.
-9. Run SearXNG in the background: `docker compose up -d`
-
-> [!NOTE]
-> You can change the port `searxng` listens on inside the docker container (e.g. if you want to operate in `host`
-> network mode) with the `BIND_ADDRESS` environment variable (defaults to `[::]:8080`). The environment variable can be
-> set directly inside `docker-compose.yaml`.
-
-## Troubleshooting - How to access the logs
-
-To access the logs from all the containers use: `docker compose logs -f`.
-
-To access the logs of one specific container:
-
-- Caddy: `docker compose logs -f caddy`
-- SearXNG: `docker compose logs -f searxng`
-- Valkey: `docker compose logs -f redis`
-
-### Start SearXNG with systemd
-
-You can skip this step if you don't use systemd.
-
-1. Copy the service template file:
-   ```sh
-   cp searxng-docker.service.template searxng-docker.service
-   ```
-
-2. Edit the content of ```WorkingDirectory``` in the ```searxng-docker.service``` file (only if the installation path is
-   different from ```/usr/local/searxng-docker```)
-
-3. Enable the service:
-   ```sh
-   systemctl enable $(pwd)/searxng-docker.service
-   ```
-
-4. Start the service:
-   ```sh
-   systemctl start searxng-docker.service
-   ```
-
-**Note:** Ensure the service file path matches your installation directory before enabling it.
-
-## Multi Architecture Docker images
-
-Supported architecture:
-
-- amd64
-- arm64
-- arm/v7
-
-## How to update ?
-
-To update the SearXNG stack:
-
-```sh
-git pull
-docker compose pull
+# 3. Запуск
 docker compose up -d
+
+# 4. Тест
+curl -X POST "http://localhost:8000/search" \
+     -H "Content-Type: application/json" \
+     -d '{"query": "цена bitcoin", "max_results": 3}'
 ```
 
-Or the old way (with the old docker-compose version):
+## 💡 Использование
 
-```sh
-git pull
-docker-compose pull
-docker-compose up -d
+### Drop-in замена для Tavily
+
+```python
+# Установите оригинальный Tavily клиент
+pip install tavily-python
+
+from tavily import TavilyClient
+
+# Просто поменяйте base_url!
+client = TavilyClient(
+    api_key="не_важно",  # Игнорируется
+    base_url="http://localhost:8000"  # Ваш адаптер
+)
+
+# Используйте как обычно
+response = client.search(
+    query="цена bitcoin",
+    max_results=5,
+    include_raw_content=True
+)
 ```
+
+### Простой API
+
+```python
+import requests
+
+response = requests.post("http://localhost:8000/search", json={
+    "query": "что такое машинное обучение",
+    "max_results": 5,
+    "include_raw_content": True
+})
+
+results = response.json()
+```
+
+## 📦 Что внутри
+
+- **SearXNG** (порт 8999) - мощный мета-поисковик
+- **Tavily Adapter** (порт 8000) - HTTP API совместимый с Tavily
+- **Redis** - кэширование для SearXNG
+- **Единый конфиг** - `config.yaml` для всех сервисов
+
+## 🎯 Преимущества
+
+| Tavily (оригинал) | SearXNG Adapter |
+|-------------------|-----------------|
+| 💰 Платный | ✅ Бесплатный |
+| 🔑 Нужен API ключ | ✅ Без ключей |
+| 📊 Лимиты запросов | ✅ Без лимитов |
+| 🏢 Внешний сервис | ✅ Локальное развертывание |
+| ❓ Неизвестные источники | ✅ Контролируете движки |
+
+## 📋 API
+
+### Запрос
+```json
+{
+  "query": "поисковый запрос",
+  "max_results": 10,
+  "include_raw_content": false
+}
+```
+
+### Ответ
+```json
+{
+  "query": "поисковый запрос",
+  "results": [
+    {
+      "url": "https://example.com",
+      "title": "Заголовок",
+      "content": "Краткое описание...",
+      "score": 0.9,
+      "raw_content": "Полный текст страницы..."
+    }
+  ],
+  "response_time": 1.23,
+  "request_id": "uuid"
+}
+```
+
+## ⚙️ Настройка
+
+Подробная инструкция: [CONFIG_SETUP.md](CONFIG_SETUP.md)
+
+## 🏗️ Архитектура
+
+```
+┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
+│   Ваш код       │───▶│  Tavily Adapter  │───▶│     SearXNG     │
+│                 │    │   (порт 8000)    │    │   (порт 8999)   │
+│ requests.post() │    │                  │    │                 │
+└─────────────────┘    └──────────────────┘    └─────────────────┘
+                                │                        │
+                                ▼                        ▼
+                       ┌──────────────────┐    ┌─────────────────┐
+                       │  Web Scraping    │    │ Google, Bing,   │
+                       │  (raw_content)   │    │ DuckDuckGo...   │
+                       └──────────────────┘    └─────────────────┘
+```
+
+## 🔧 Разработка
+
+```bash
+# Локальная разработка адаптера
+cd simple_tavily_adapter
+pip install -r requirements.txt
+python main.py
+
+# Тестирование
+python test_client.py
+```
+
+## 📜 Лицензия
+
+MIT License - используйте как хотите! 🎉
